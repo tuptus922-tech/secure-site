@@ -31,7 +31,8 @@ async function initDB() {
     console.log('Database ready!');
   } catch (err) {
     console.error('Database init error:', err.message);
-    // NIE crashujemy serwera — Railway restartuje kontener, spróbuje znowu
+    // Retry after 5 seconds
+    setTimeout(initDB, 5000);
   }
 }
 
@@ -164,5 +165,6 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running at http://localhost:${PORT}`);
-  initDB(); // Inicjalizuj DB po starcie serwera, nie przed
+  initDB(); // Inicjalizuj DB po starcie serwera
 });
+
