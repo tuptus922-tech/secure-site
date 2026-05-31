@@ -1,6 +1,4 @@
-process.on('uncaughtException', (err) => { console.error('CRASH:', err.message, err.stack); process.exit(1); });
-process.on('unhandledRejection', (err) => { console.error('UNHANDLED:', err); process.exit(1); });
-// dotenv disabled on production
+require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
