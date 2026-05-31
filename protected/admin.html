@@ -1,78 +1,372 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Panel</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
   <style>
-    body { font-family: sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
-    h1 { color: #333; }
-    .card { background: white; padding: 24px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    input { padding: 10px; margin: 4px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
-    button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
-    .btn-green { background: #27ae60; color: white; }
-    .btn-green:hover { background: #219a52; }
-    .btn-red { background: #e74c3c; color: white; }
-    .btn-red:hover { background: #c0392b; }
-    .btn-orange { background: #e67e22; color: white; }
-    .btn-orange:hover { background: #ca6f1e; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: #060612;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: rgba(255,255,255,0.9);
+      padding: 2rem 1rem;
+      overflow-x: hidden;
+    }
+
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .b1 { width: 500px; height: 500px; background: #7f0000; top: -120px; left: -120px; opacity: 0.5; }
+    .b2 { width: 450px; height: 450px; background: #3b0fba; bottom: -80px; right: -80px; opacity: 0.5; }
+    .b3 { width: 300px; height: 300px; background: #0e4bbd; top: 40%; left: 60%; opacity: 0.3; }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .shield-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: rgba(220,50,50,0.2);
+      box-shadow: 0 0 0 1px rgba(255,100,100,0.3) inset;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      color: rgba(255,180,180,0.95);
+    }
+
+    .topbar-title {
+      font-size: 20px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.95);
+    }
+
+    .topbar-sub {
+      font-size: 12px;
+      color: rgba(255,255,255,0.3);
+      margin-top: 2px;
+    }
+
+    .btn-logout {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255,180,180,0.9);
+      cursor: pointer;
+      background: rgba(200,40,40,0.2);
+      backdrop-filter: blur(20px);
+      box-shadow: 0 0 0 1px rgba(255,100,100,0.25) inset;
+      transition: background 0.2s;
+    }
+    .btn-logout:hover { background: rgba(200,40,40,0.35); }
+
+    .card {
+      position: relative;
+      border-radius: 24px;
+      padding: 1.75rem;
+      margin-bottom: 1.25rem;
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(30px) saturate(160%);
+      -webkit-backdrop-filter: blur(30px) saturate(160%);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.12) inset,
+        0 2px 0 rgba(255,255,255,0.18) inset,
+        0 20px 60px rgba(0,0,0,0.4);
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 5%; right: 5%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.8);
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title i { font-size: 18px; color: rgba(255,255,255,0.4); }
+
+    .form-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .glass-input {
+      flex: 1;
+      min-width: 140px;
+      background: rgba(255,255,255,0.08);
+      border: none;
+      border-radius: 12px;
+      padding: 11px 14px;
+      color: rgba(255,255,255,0.95);
+      font-size: 14px;
+      outline: none;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.12) inset,
+        0 1px 0 rgba(255,255,255,0.15) inset;
+      transition: box-shadow 0.2s, background 0.2s;
+    }
+    .glass-input::placeholder { color: rgba(255,255,255,0.3); }
+    .glass-input:focus {
+      background: rgba(255,255,255,0.12);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.22) inset,
+        0 1px 0 rgba(255,255,255,0.25) inset,
+        0 0 0 3px rgba(80,200,120,0.2);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 11px 18px;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+      backdrop-filter: blur(20px);
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 5%; right: 5%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    }
+
+    .btn-green {
+      color: rgba(180,255,210,0.95);
+      background: rgba(20,160,80,0.3);
+      box-shadow: 0 0 0 1px rgba(100,255,160,0.2) inset, 0 4px 16px rgba(20,140,70,0.3);
+    }
+    .btn-green:hover { background: rgba(20,160,80,0.45); }
+
+    .btn-orange {
+      color: rgba(255,210,160,0.95);
+      background: rgba(200,100,20,0.3);
+      box-shadow: 0 0 0 1px rgba(255,180,80,0.2) inset, 0 4px 16px rgba(180,80,20,0.3);
+      font-size: 13px;
+      padding: 8px 14px;
+    }
+    .btn-orange:hover { background: rgba(200,100,20,0.45); }
+
+    .msg {
+      font-size: 13px;
+      margin-top: 12px;
+      min-height: 20px;
+    }
+
     table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
-    th { background: #f8f8f8; font-weight: 600; }
-    .bound { color: #27ae60; font-weight: bold; }
-    .unbound { color: #e74c3c; }
-    #message { margin-top: 10px; font-weight: bold; }
+
+    thead tr {
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    th {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.3);
+      padding: 0 12px 12px;
+      text-align: left;
+    }
+
+    td {
+      padding: 14px 12px;
+      font-size: 14px;
+      color: rgba(255,255,255,0.75);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: rgba(255,255,255,0.03); }
+
+    .username { color: rgba(255,255,255,0.95); font-weight: 500; }
+
+    .badge-bound {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(20,160,80,0.2);
+      color: rgba(100,255,160,0.9);
+      box-shadow: 0 0 0 1px rgba(60,200,100,0.25) inset;
+    }
+
+    .badge-free {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.35);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.1) inset;
+    }
+
+    .empty-row td {
+      text-align: center;
+      color: rgba(255,255,255,0.25);
+      padding: 2rem;
+      font-size: 13px;
+    }
+
+    .refresh-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+      background: rgba(255,255,255,0.06);
+      cursor: pointer;
+      margin-bottom: 1rem;
+      transition: background 0.2s, color 0.2s;
+    }
+    .refresh-btn:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); }
+
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <h1>🛡️ Admin Panel</h1>
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
 
-  <div class="card">
-    <h2>➕ Dodaj nowego użytkownika</h2>
-    <input type="text" id="newUsername" placeholder="Login" />
-    <input type="password" id="newPassword" placeholder="Hasło" />
-    <button class="btn-green" onclick="addUser()">Dodaj użytkownika</button>
-    <p id="message"></p>
+  <div class="container">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="shield-icon"><i class="ti ti-shield-lock"></i></div>
+        <div>
+          <div class="topbar-title">Panel administratora</div>
+          <div class="topbar-sub">Zarządzanie użytkownikami</div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="logout()">
+        <i class="ti ti-logout"></i> Wyloguj
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <i class="ti ti-user-plus"></i>
+        Dodaj nowego użytkownika
+      </div>
+      <div class="form-row">
+        <input class="glass-input" type="text" id="newUsername" placeholder="Login" />
+        <input class="glass-input" type="password" id="newPassword" placeholder="Hasło" />
+        <button class="btn btn-green" onclick="addUser()">
+          <i class="ti ti-plus"></i> Dodaj
+        </button>
+      </div>
+      <p class="msg" id="message"></p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <i class="ti ti-users"></i>
+        Wszyscy użytkownicy
+      </div>
+      <button class="refresh-btn" onclick="loadUsers()">
+        <i class="ti ti-refresh" id="refreshIcon"></i> Odśwież
+      </button>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Login</th>
+            <th>Status urządzenia</th>
+            <th>Data dodania</th>
+            <th>Akcja</th>
+          </tr>
+        </thead>
+        <tbody id="usersTable">
+          <tr class="empty-row"><td colspan="5">Ładowanie...</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
-
-  <div class="card">
-    <h2>👥 Wszyscy użytkownicy</h2>
-    <button class="btn-green" onclick="loadUsers()" style="margin-bottom:16px">🔄 Odśwież</button>
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Login</th>
-          <th>Status urządzenia</th>
-          <th>Data dodania</th>
-          <th>Akcja</th>
-        </tr>
-      </thead>
-      <tbody id="usersTable">
-        <tr><td colspan="5">Kliknij Odśwież aby załadować...</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <button class="btn-red" onclick="logout()">🚪 Wyloguj z admina</button>
 
   <script>
     async function loadUsers() {
+      const icon = document.getElementById('refreshIcon');
+      icon.style.animation = 'spin 0.6s linear infinite';
       const res = await fetch('/api/admin/users');
       const users = await res.json();
+      icon.style.animation = '';
       const tbody = document.getElementById('usersTable');
       tbody.innerHTML = '';
+      if (users.length === 0) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Brak użytkowników</td></tr>';
+        return;
+      }
       users.forEach(user => {
         const bound = user.device_token !== null;
+        const date = new Date(user.created_at).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
         tbody.innerHTML += `
           <tr>
-            <td>${user.id}</td>
-            <td><strong>${user.username}</strong></td>
-            <td class="${bound ? 'bound' : 'unbound'}">
-              ${bound ? '✅ Zbindowane' : '⭕ Wolne'}
-            </td>
-            <td>${user.created_at}</td>
+            <td style="color:rgba(255,255,255,0.3)">${user.id}</td>
+            <td class="username">${user.username}</td>
             <td>
-              ${bound ? `<button class="btn-orange" onclick="resetDevice(${user.id})">🔄 Reset urządzenia</button>` : '—'}
+              ${bound
+                ? '<span class="badge-bound"><i class="ti ti-device-mobile"></i> Zbindowane</span>'
+                : '<span class="badge-free"><i class="ti ti-circle-dashed"></i> Wolne</span>'
+              }
+            </td>
+            <td style="color:rgba(255,255,255,0.4)">${date}</td>
+            <td>
+              ${bound
+                ? `<button class="btn btn-orange" onclick="resetDevice(${user.id})"><i class="ti ti-refresh"></i> Reset</button>`
+                : '<span style="color:rgba(255,255,255,0.2);font-size:13px">—</span>'
+              }
             </td>
           </tr>
         `;
@@ -84,8 +378,8 @@
       const password = document.getElementById('newPassword').value.trim();
       const msg = document.getElementById('message');
       if (!username || !password) {
-        msg.style.color = 'red';
-        msg.textContent = 'Wypełnij oba pola!';
+        msg.style.color = 'rgba(255,100,100,0.85)';
+        msg.textContent = 'Wypełnij oba pola.';
         return;
       }
       const res = await fetch('/api/admin/users', {
@@ -95,20 +389,20 @@
       });
       const data = await res.json();
       if (res.ok) {
-        msg.style.color = 'green';
-        msg.textContent = `✅ Użytkownik "${username}" dodany!`;
+        msg.style.color = 'rgba(100,255,160,0.85)';
+        msg.textContent = 'Użytkownik "' + username + '" dodany!';
         document.getElementById('newUsername').value = '';
         document.getElementById('newPassword').value = '';
         loadUsers();
       } else {
-        msg.style.color = 'red';
-        msg.textContent = '❌ ' + data.error;
+        msg.style.color = 'rgba(255,100,100,0.85)';
+        msg.textContent = data.error || 'Błąd dodawania.';
       }
     }
 
     async function resetDevice(id) {
       if (!confirm('Na pewno zresetować urządzenie tego użytkownika?')) return;
-      await fetch(`/api/admin/users/${id}/reset`, { method: 'POST' });
+      await fetch('/api/admin/users/' + id + '/reset', { method: 'POST' });
       loadUsers();
     }
 

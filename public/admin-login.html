@@ -1,39 +1,307 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Login</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
   <style>
-    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #1a1a2e; }
-    .box { background: white; padding: 40px; border-radius: 12px; width: 320px; }
-    h1 { margin-top: 0; color: #333; }
-    input { width: 100%; padding: 10px; margin: 8px 0; box-sizing: border-box; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
-    button { width: 100%; padding: 12px; background: #e74c3c; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
-    button:hover { background: #c0392b; }
-    #message { color: red; margin-top: 10px; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: #060612;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow: hidden;
+    }
+
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(70px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .b1 { width: 500px; height: 500px; background: #7f0000; top: -120px; left: -120px; opacity: 0.6; }
+    .b2 { width: 450px; height: 450px; background: #3b0fba; bottom: -80px; right: -80px; opacity: 0.5; }
+    .b3 { width: 320px; height: 320px; background: #a50000; top: 40%; left: 45%; opacity: 0.4; }
+    .b4 { width: 250px; height: 250px; background: #6d0000; top: 15%; right: 20%; opacity: 0.35; }
+
+    .card {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      max-width: 380px;
+      margin: 1rem;
+      border-radius: 28px;
+      padding: 2.5rem 2rem;
+      background: rgba(255,255,255,0.07);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.15) inset,
+        0 2px 0 rgba(255,255,255,0.25) inset,
+        0 -1px 0 rgba(0,0,0,0.3) inset,
+        0 32px 80px rgba(0,0,0,0.5),
+        0 8px 32px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 5%; right: 5%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+    }
+
+    .card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 50%;
+      background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 100%);
+      border-radius: 28px 28px 0 0;
+      pointer-events: none;
+    }
+
+    .icon-wrap {
+      width: 56px; height: 56px;
+      margin: 0 auto 1.5rem;
+      border-radius: 16px;
+      background: rgba(220,50,50,0.2);
+      backdrop-filter: blur(20px);
+      box-shadow:
+        0 0 0 1px rgba(255,100,100,0.3) inset,
+        0 1px 0 rgba(255,150,150,0.35) inset;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      color: rgba(255,180,180,0.95);
+    }
+
+    .badge {
+      display: block;
+      text-align: center;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(255,120,120,0.6);
+      margin-bottom: 0.4rem;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 20px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.95);
+      margin-bottom: 1.75rem;
+      letter-spacing: -0.01em;
+    }
+
+    .field {
+      position: relative;
+      margin-bottom: 12px;
+    }
+
+    .field input {
+      width: 100%;
+      background: rgba(255,255,255,0.08);
+      border: none;
+      border-radius: 14px;
+      padding: 12px 14px 12px 42px;
+      color: rgba(255,255,255,0.95);
+      font-size: 15px;
+      outline: none;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.12) inset,
+        0 1px 0 rgba(255,255,255,0.18) inset;
+      transition: box-shadow 0.2s, background 0.2s;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .field input::placeholder { color: rgba(255,255,255,0.3); }
+
+    .field input:focus {
+      background: rgba(255,255,255,0.12);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.25) inset,
+        0 1px 0 rgba(255,255,255,0.3) inset,
+        0 0 0 3px rgba(220,50,50,0.25);
+    }
+
+    .field i {
+      position: absolute;
+      left: 13px; top: 50%;
+      transform: translateY(-50%);
+      color: rgba(255,255,255,0.35);
+      font-size: 17px;
+      pointer-events: none;
+    }
+
+    .btn {
+      width: 100%;
+      margin-top: 8px;
+      padding: 13px;
+      border: none;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.95);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      background: rgba(200,40,40,0.35);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.2) inset,
+        0 1px 0 rgba(255,255,255,0.3) inset,
+        0 4px 20px rgba(180,20,20,0.4);
+      transition: box-shadow 0.2s, background 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 5%; right: 5%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+    }
+
+    .btn:hover {
+      background: rgba(200,40,40,0.48);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.25) inset,
+        0 1px 0 rgba(255,255,255,0.35) inset,
+        0 6px 28px rgba(180,20,20,0.55);
+    }
+
+    .btn:active { transform: scale(0.98); }
+
+    .msg {
+      text-align: center;
+      font-size: 13px;
+      margin-top: 12px;
+      min-height: 20px;
+      color: rgba(255,100,100,0.85);
+    }
+
+    .sep {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 1.25rem 0 0.75rem;
+    }
+    .sep-line { flex: 1; height: 1px; background: rgba(255,255,255,0.08); }
+    .sep-text { font-size: 11px; color: rgba(255,255,255,0.2); }
+
+    .back-link {
+      text-align: center;
+      font-size: 13px;
+      color: rgba(255,255,255,0.25);
+    }
+    .back-link a {
+      color: rgba(180,160,255,0.7);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .back-link a:hover { color: rgba(200,185,255,0.95); }
+
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <div class="box">
-    <h1>🔐 Admin Panel</h1>
-    <input type="password" id="password" placeholder="Admin password" />
-    <button onclick="login()">Login</button>
-    <p id="message"></p>
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+  <div class="blob b4"></div>
+
+  <div class="card">
+    <div class="icon-wrap"><i class="ti ti-shield-lock"></i></div>
+    <span class="badge">Panel administratora</span>
+    <h1>Zaloguj się</h1>
+
+    <div class="field">
+      <i class="ti ti-key"></i>
+      <input type="password" id="password" placeholder="Hasło administratora" autocomplete="current-password" />
+    </div>
+
+    <button class="btn" id="loginBtn" onclick="handleLogin()">
+      <i class="ti ti-arrow-right"></i> Zaloguj się
+    </button>
+
+    <p class="msg" id="msg"></p>
+
+    <div class="sep">
+      <div class="sep-line"></div>
+      <span class="sep-text">użytkownicy</span>
+      <div class="sep-line"></div>
+    </div>
+    <div class="back-link"><a href="/">← Strona logowania</a></div>
   </div>
+
   <script>
-    async function login() {
+    const btn = document.getElementById('loginBtn');
+    const msg = document.getElementById('msg');
+
+    document.getElementById('password').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleLogin();
+    });
+
+    async function handleLogin() {
       const password = document.getElementById('password').value;
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        window.location.href = '/admin';
-      } else {
-        document.getElementById('message').textContent = data.error;
+
+      if (!password) {
+        showMsg('Wpisz hasło.', 'error');
+        return;
       }
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="ti ti-loader-2" style="animation: spin 1s linear infinite;"></i> Logowanie...';
+      msg.textContent = '';
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          btn.innerHTML = '<i class="ti ti-check"></i> Zalogowano!';
+          btn.style.background = 'rgba(20,180,100,0.35)';
+          setTimeout(() => { window.location.href = '/admin'; }, 600);
+        } else {
+          showMsg(data.error || 'Błędne hasło.', 'error');
+          resetBtn();
+        }
+      } catch (err) {
+        showMsg('Błąd połączenia z serwerem.', 'error');
+        resetBtn();
+      }
+    }
+
+    function showMsg(text, type) {
+      msg.textContent = text;
+      msg.style.color = type === 'error' ? 'rgba(255,100,100,0.85)' : 'rgba(100,255,160,0.85)';
+    }
+
+    function resetBtn() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-arrow-right"></i> Zaloguj się';
+      btn.style.background = '';
     }
   </script>
 </body>
