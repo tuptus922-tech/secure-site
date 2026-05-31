@@ -40,7 +40,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 function requireAuth(req, res, next) {
   const token = req.cookies.device_token;
   if (!token) return res.redirect('/');
-  ppool.query('SELECT * FROM users', [])
+  pool.query('SELECT * FROM users', [])
     .then(result => {
       const user = result.rows.find(u => {
         if (!u.device_token) return false;
