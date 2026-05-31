@@ -113,7 +113,7 @@ app.get('/admin', requireAdmin, (req, res) => {
 });
 
 // ===== CHRONIONA STRONA =====
-const SITE_PATH = '/home/tuptus/Pobrane/dowodplska-main';
+const SITE_PATH = path.join(__dirname, 'site');
 
 app.use('/site', requireAuth, express.static(SITE_PATH));
 
