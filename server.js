@@ -1,4 +1,4 @@
-require('dotenv').config();
+if (!process.env.RAILWAY_ENVIRONMENT) { require('dotenv').config(); }
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
