@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Kreator danych – Dowód PL</title>
+  <base href="./">
+  <link rel="stylesheet" href="assets/app/main.css">
+  <link rel="icon" type="image/x-icon" href="assets/app/images/ikonka.png">
+  <link rel="apple-touch-icon" href="assets/app/images/ikonka.png">
+  <link rel="shortcut icon" href="assets/app/images/ikonka.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="mObywatel">
+  <script src="assets/app/manifest.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #101317;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 20px;
+      padding-bottom: 100px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    .upload-box {
+      width: 100%;
+      height: 150px;
+      border: 2px dashed #2563eb;
+      border-radius: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+      background: rgba(37, 99, 235, 0.1);
+    }
+    .upload-box:hover {
+      background: rgba(37, 99, 235, 0.2);
+    }
+    .upload-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    .upload-box.has-image::after {
+      content: 'Kliknij, aby zmienić zdjęcie';
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 12px;
+    }
+    .upload-icon {
+      width: 50px;
+      height: 50px;
+      margin-bottom: 10px;
+      opacity: 0.7;
+    }
+    .upload-text {
+      font-size: 14px;
+      color: #2563eb;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    .input-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 14px;
+      color: #aaa;
+      font-weight: 500;
+    }
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #2a2d35;
+      border-radius: 10px;
+      background: #1a1d24;
+      color: white;
+      font-size: 16px;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus {
+      outline: none;
+      border-color: #2563eb;
+    }
+    .date-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+    .submit-btn {
+      width: 100%;
+      padding: 15px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: background 0.2s;
+    }
+    .submit-btn:hover {
+      background: #1d4ed8;
+    }
+    .submit-btn:active {
+      background: #1e40af;
+    }
+    .error {
+      color: #ef4444;
+      font-size: 12px;
+      margin-top: 5px;
+      display: none;
+    }
+    .input-group.error input,
+    .input-group.error select {
+      border-color: #ef4444;
+    }
+    .input-group.error .error {
+      display: block;
+    }
+    #installPrompt {
+      animation: fadeIn 0.3s ease-in;
+    }
+    #installPrompt > div {
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+    #installPrompt ol li {
+      margin-bottom: 8px;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🪪 Kreator danych</h1>
+    
+    <div class="upload-box" id="uploadBox">
+      <img id="preview" style="display: none;">
+      <div id="uploadContent">
+        <div class="upload-icon">📷</div>
+        <p class="upload-text">Dodaj zdjęcie</p>
+      </div>
+    </div>
+    <input type="file" id="imageInput" accept="image/*">
+
+    <form id="creatorForm">
+      <div class="input-group">
+        <label>Imię (imiona) *</label>
+        <input type="text" id="name" required>
+        <div class="error">To pole jest wymagane</div>
+      </div>
+
+      <div class="input-group">
+        <label>Nazwisko *</label>
+        <input type="text" id="surname" required>
+        <div class="error">To pole jest wymagane</div>
+      </div>
+
+      <div class="input-group">
+        <label>Obywatelstwo *</label>
+        <input type="text" id="nationality" value="POLSKIE" required>
+        <div class="error">To pole jest wymagane</div>
+      </div>
+
+      <div class="input-group">
+        <label>Nazwisko rodowe *</label>
+        <input type="text" id="familyName" required>
+        <div class="error">To pole jest wymagane</div>
+      </div>
+
+      <div class="input-group">
+        <label>Imię ojca *</label>
+        <input type="text" id="fathersName" required>
+        <div class="error">To pole jest wymagane</div>
+      </div>
+
+      <div class="input-group">
+        <label>Nazwisko rodowe ojca *</label>
+        <input type="text" id="fathersFamilyName" required>
+        <div class="error">To pole jest wymagane</div>
+      </div>
+
+      <div class="input-group">
+        <label>Imię matki *</label>
+        <input type="text" id="mothersName" required>
+        <div class="error">To pole jest wymagane</div>
+      </div>
+
+      <div class="input-group">
+        <label>Nazwisko rodowe matki *</label>
+        <input type="text" id="mothersFamilyName" required>
+        <div class="error">To pole jest wymagane</div>
+      </div>
+
+      <div class="input-group">
+        <label>Miejsce urodzenia *</label>
+        <input type="text" id="birthPlace" required>
+        <div class="error">To pole jest wymagane</div>
+      </div>
+
+      <div class="input-group">
+        <label>Kraj urodzenia *</label>
+        <input type="text" id="countryOfBirth" value="POLSKA" required>
+        <div class="error">To pole jest wymagane</div>
+      </div>
+
+      <div class="input-group">
+        <label>Ulica i numer domu *</label>
+        <input type="text" id="address1" required>
+        <div class="error">To pole jest wymagane</div>
+      </div>
+
+      <div class="input-group">
+        <label>Kod pocztowy *</label>
+        <input type="text" id="address2" required>
+        <div class="error">To pole jest wymagane</div>
+      </div>
+
+      <div class="input-group">
+        <label>Miasto *</label>
+        <input type="text" id="city" required>
+        <div class="error">To pole jest wymagane</div>
+      </div>
+
+      <div class="input-group">
+        <label>Płeć *</label>
+        <select id="sex" required>
+          <option value="">Wybierz płeć</option>
+          <option value="m">Mężczyzna</option>
+          <option value="k">Kobieta</option>
+        </select>
+        <div class="error">To pole jest wymagane</div>
+      </div>
+
+      <div class="input-group">
+        <label>Data urodzenia *</label>
+        <div class="date-row">
+          <input type="number" id="day" placeholder="DD" min="1" max="31" required>
+          <input type="number" id="month" placeholder="MM" min="1" max="12" required>
+          <input type="number" id="year" placeholder="YYYY" min="1900" max="2100" required>
+        </div>
+        <div class="error">Wprowadź prawidłową datę</div>
+      </div>
+
+      <button type="submit" class="submit-btn">Zapisz i pokaż dowód</button>
+    </form>
+
+    <!-- Instrukcja dodania do ekranu głównego -->
+    <div id="installPrompt" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+      <div style="background: #1a1d24; padding: 30px; border-radius: 15px; max-width: 90%; max-height: 90vh; overflow-y: auto; color: white;">
+        <h2 style="margin-bottom: 20px; text-align: center;">📱 Dodaj aplikację do ekranu głównego</h2>
+        <div id="iosInstructions" style="display: none;">
+          <p style="margin-bottom: 15px; font-weight: 600;">Dla systemu iOS:</p>
+          <ol style="margin-left: 20px; margin-bottom: 20px; line-height: 1.8;">
+            <li>Upewnij się, że używasz przeglądarki Safari</li>
+            <li>Kliknij przycisk <strong>Udostępnij</strong> (ikonka strzałki w górę)</li>
+            <li>Wybierz <strong>"Dodaj do ekranu głównego"</strong></li>
+            <li>Kliknij <strong>"Dodaj"</strong></li>
+          </ol>
+        </div>
+        <div id="androidInstructions" style="display: none;">
+          <p style="margin-bottom: 15px; font-weight: 600;">Dla systemu Android:</p>
+          <ol style="margin-left: 20px; margin-bottom: 20px; line-height: 1.8;">
+            <li>Upewnij się, że używasz przeglądarki Chrome lub Google</li>
+            <li>Kliknij <strong>Menu</strong> (3 kropki w prawym górnym rogu)</li>
+            <li>Wybierz <strong>"Dodaj do ekranu głównego"</strong> lub <strong>"Zainstaluj aplikację"</strong></li>
+            <li>Kliknij <strong>"Dodaj"</strong> lub <strong>"Zainstaluj"</strong></li>
+          </ol>
+        </div>
+        <button onclick="closeInstallPrompt()" style="width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 10px;">
+          Rozumiem
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("creatorForm");
+    const imageInput = document.getElementById("imageInput");
+    const preview = document.getElementById("preview");
+    const uploadBox = document.getElementById("uploadBox");
+    const uploadContent = document.getElementById("uploadContent");
+    let imageBase64 = null;
+
+    // Obsługa uploadu zdjęcia
+    uploadBox.addEventListener("click", () => {
+      imageInput.click();
+    });
+
+    imageInput.addEventListener("change", () => {
+      const file = imageInput.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = e => {
+        imageBase64 = e.target.result;
+        preview.src = imageBase64;
+        preview.style.display = "block";
+        uploadContent.style.display = "none";
+        uploadBox.classList.add("has-image");
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Funkcje do IndexedDB
+    function getDb(){
+      return new Promise((resolve, reject) => {
+        const r = indexedDB.open('fobywatel', 1);
+        r.onupgradeneeded = e => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('data')){
+            db.createObjectStore('data', { keyPath: 'data' });
+          }
+        };
+        r.onsuccess = e => resolve(e.target.result);
+        r.onerror = e => reject(e.target.error);
+      });
+    }
+
+    function saveData(db, data){
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('data','readwrite');
+        const store = tx.objectStore('data');
+        const req = store.put(data);
+        req.onsuccess = () => resolve();
+        req.onerror = e => reject(e.target.error);
+      });
+    }
+
+    function validateForm() {
+      let isValid = true;
+      const inputs = form.querySelectorAll('input[required], select[required]');
+      
+      inputs.forEach(input => {
+        const group = input.closest('.input-group');
+        if (input.type === 'number') {
+          const day = parseInt(form.day.value);
+          const month = parseInt(form.month.value);
+          const year = parseInt(form.year.value);
+          
+          if (!day || !month || !year || day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > 2100) {
+            group.classList.add('error');
+            isValid = false;
+          } else {
+            group.classList.remove('error');
+          }
+        } else {
+          if (!input.value.trim()) {
+            group.classList.add('error');
+            isValid = false;
+          } else {
+            group.classList.remove('error');
+          }
+        }
+      });
+      
+      return isValid;
+    }
+
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+
+      if (!validateForm()) {
+        form.querySelector('.error').closest('.input-group').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+
+      const data = {
+        data: 'data', // klucz dla IndexedDB
+        name: form.name.value.trim(),
+        surname: form.surname.value.trim(),
+        nationality: form.nationality.value.trim(),
+        familyName: form.familyName.value.trim(),
+        fathersName: form.fathersName.value.trim(),
+        fathersFamilyName: form.fathersFamilyName.value.trim(),
+        mothersName: form.mothersName.value.trim(),
+        mothersFamilyName: form.mothersFamilyName.value.trim(),
+        birthPlace: form.birthPlace.value.trim(),
+        countryOfBirth: form.countryOfBirth.value.trim(),
+        address1: form.address1.value.trim(),
+        address2: form.address2.value.trim(),
+        city: form.city.value.trim(),
+        sex: form.sex.value,
+        day: parseInt(form.day.value),
+        month: parseInt(form.month.value),
+        year: parseInt(form.year.value)
+      };
+
+      // Zapisz dane w IndexedDB
+      const db = await getDb();
+      await saveData(db, data);
+
+      // Zapisz zdjęcie w IndexedDB
+      if (imageBase64) {
+        await saveData(db, { data: 'image', image: imageBase64 });
+      }
+
+      localStorage.setItem('hasUserData', 'true');
+
+      // Sprawdź czy aplikacja jest już zainstalowana
+      const isInstalled = window.matchMedia('(display-mode: standalone)').matches || 
+                          window.navigator.standalone === true;
+      
+      if (!isInstalled) {
+        // Pokaż instrukcję dodania do ekranu głównego
+        showInstallPrompt();
+      } else {
+        // Przekierowanie na ekran logowania
+        window.location.href = "id.html";
+      }
+    });
+
+    function showInstallPrompt() {
+      const prompt = document.getElementById('installPrompt');
+      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const android = /Android/.test(navigator.userAgent);
+      
+      if (ios) {
+        document.getElementById('iosInstructions').style.display = 'block';
+        document.getElementById('androidInstructions').style.display = 'none';
+      } else if (android) {
+        document.getElementById('iosInstructions').style.display = 'none';
+        document.getElementById('androidInstructions').style.display = 'block';
+      } else {
+        document.getElementById('iosInstructions').style.display = 'block';
+        document.getElementById('androidInstructions').style.display = 'block';
+      }
+      
+      prompt.style.display = 'flex';
+    }
+
+    function closeInstallPrompt() {
+      document.getElementById('installPrompt').style.display = 'none';
+      // Przekierowanie na ekran logowania
+      window.location.href = "id.html";
+    }
+
+    // Obsługa eventu beforeinstallprompt dla Chrome
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+    });
+  </script>
+</body>
+</html>

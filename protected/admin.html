@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Panel</title>
+  <style>
+    body { font-family: sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+    h1 { color: #333; }
+    .card { background: white; padding: 24px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    input { padding: 10px; margin: 4px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .btn-green { background: #27ae60; color: white; }
+    .btn-green:hover { background: #219a52; }
+    .btn-red { background: #e74c3c; color: white; }
+    .btn-red:hover { background: #c0392b; }
+    .btn-orange { background: #e67e22; color: white; }
+    .btn-orange:hover { background: #ca6f1e; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8f8f8; font-weight: 600; }
+    .bound { color: #27ae60; font-weight: bold; }
+    .unbound { color: #e74c3c; }
+    #message { margin-top: 10px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>🛡️ Admin Panel</h1>
+
+  <div class="card">
+    <h2>➕ Dodaj nowego użytkownika</h2>
+    <input type="text" id="newUsername" placeholder="Login" />
+    <input type="password" id="newPassword" placeholder="Hasło" />
+    <button class="btn-green" onclick="addUser()">Dodaj użytkownika</button>
+    <p id="message"></p>
+  </div>
+
+  <div class="card">
+    <h2>👥 Wszyscy użytkownicy</h2>
+    <button class="btn-green" onclick="loadUsers()" style="margin-bottom:16px">🔄 Odśwież</button>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Login</th>
+          <th>Status urządzenia</th>
+          <th>Data dodania</th>
+          <th>Akcja</th>
+        </tr>
+      </thead>
+      <tbody id="usersTable">
+        <tr><td colspan="5">Kliknij Odśwież aby załadować...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <button class="btn-red" onclick="logout()">🚪 Wyloguj z admina</button>
+
+  <script>
+    async function loadUsers() {
+      const res = await fetch('/api/admin/users');
+      const users = await res.json();
+      const tbody = document.getElementById('usersTable');
+      tbody.innerHTML = '';
+      users.forEach(user => {
+        const bound = user.device_token !== null;
+        tbody.innerHTML += `
+          <tr>
+            <td>${user.id}</td>
+            <td><strong>${user.username}</strong></td>
+            <td class="${bound ? 'bound' : 'unbound'}">
+              ${bound ? '✅ Zbindowane' : '⭕ Wolne'}
+            </td>
+            <td>${user.created_at}</td>
+            <td>
+              ${bound ? `<button class="btn-orange" onclick="resetDevice(${user.id})">🔄 Reset urządzenia</button>` : '—'}
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    async function addUser() {
+      const username = document.getElementById('newUsername').value.trim();
+      const password = document.getElementById('newPassword').value.trim();
+      const msg = document.getElementById('message');
+      if (!username || !password) {
+        msg.style.color = 'red';
+        msg.textContent = 'Wypełnij oba pola!';
+        return;
+      }
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        msg.style.color = 'green';
+        msg.textContent = `✅ Użytkownik "${username}" dodany!`;
+        document.getElementById('newUsername').value = '';
+        document.getElementById('newPassword').value = '';
+        loadUsers();
+      } else {
+        msg.style.color = 'red';
+        msg.textContent = '❌ ' + data.error;
+      }
+    }
+
+    async function resetDevice(id) {
+      if (!confirm('Na pewno zresetować urządzenie tego użytkownika?')) return;
+      await fetch(`/api/admin/users/${id}/reset`, { method: 'POST' });
+      loadUsers();
+    }
+
+    async function logout() {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      window.location.href = '/admin-login.html';
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>
