@@ -199,6 +199,7 @@ async function loadImage() {
     var imageUrl = params.get('image');
     
     if (imageUrl) {
+        localStorage.setItem('savedImageUrl', imageUrl);
         if (imageEvent) {
             imageEvent(imageUrl);
         }
@@ -209,6 +210,9 @@ async function loadImage() {
         saveData(db, imageData);
     } else if (image && imageEvent) {
         imageEvent(image.image);
+    } else if (localStorage.getItem('savedImageUrl')) {
+        var savedUrl = localStorage.getItem('savedImageUrl');
+        if (imageEvent) imageEvent(savedUrl);
     } else {
         // Fallback - próba pobrania z serwera
         try {
