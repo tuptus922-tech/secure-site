@@ -40,9 +40,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 function requireAuth(req, res, next) {
   const token = req.cookies.device_token;
   if (!token) return res.redirect('/');
-  pool.query('SELECT * FROM users WHERE device_token = $1', [token])
+  ppool.query('SELECT * FROM users', [])
     .then(result => {
-      if (result.rows.length === 0) return res.redirect('/');
+      const user = result.rows.find(u => {
+        if (!u.device_token) return false;
+        try {
+          const tokens = JSON.parse(u.device_token);
+          if (Array.isArray(tokens)) return tokens.includes(token);
+          return u.device_token === token;
+        } catch(e) { return u.device_token === token; }
+      });
+      if (!user) return res.redirect('/');
       next();
     })
     .catch(() => res.redirect('/'));
@@ -81,12 +89,19 @@ app.post('/api/login', async (req, res) => {
     const passwordMatch = bcrypt.compareSync(password, user.password);
     if (!passwordMatch) return res.status(401).json({ error: 'Invalid username or password' });
     const newToken = uuidv4();
-    if (user.device_token === null) {
-      await pool.query('UPDATE users SET device_token = $1 WHERE id = $2', [newToken, user.id]);
-      res.cookie('device_token', newToken, { httpOnly: true, sameSite: 'strict', secure: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
-    } else {
-      return res.status(403).json({ error: 'This account is already bound to another device' });
+    let tokens = [];
+    if (user.device_token) {
+      try {
+        tokens = JSON.parse(user.device_token);
+        if (!Array.isArray(tokens)) tokens = [user.device_token];
+      } catch(e) {
+        tokens = [user.device_token];
+      }
     }
+    tokens.push(newToken);
+    await pool.query('UPDATE users SET device_token = $1 WHERE id = $2', [JSON.stringify(tokens), user.id]);
+    res.cookie('device_token', newToken, { httpOnly: true, sameSite: 'strict', secure: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
+
     res.json({ success: true });
   } catch (err) {
     console.error('Login error:', err.message);
@@ -147,9 +162,17 @@ app.post('/api/admin/logout', (req, res) => {
 app.use((req, res) => {
   const token = req.cookies.device_token;
   if (!token) return res.redirect('/');
-  pool.query('SELECT * FROM users WHERE device_token = $1', [token])
+  pool.query('SELECT * FROM users', [])
     .then(result => {
-      if (result.rows.length === 0) return res.redirect('/');
+      const user = result.rows.find(u => {
+        if (!u.device_token) return false;
+        try {
+          const tokens = JSON.parse(u.device_token);
+          if (Array.isArray(tokens)) return tokens.includes(token);
+          return u.device_token === token;
+        } catch(e) { return u.device_token === token; }
+      });
+      if (!user) return res.redirect('/');
       res.redirect('/site');
     })
     .catch(() => res.redirect('/'));
