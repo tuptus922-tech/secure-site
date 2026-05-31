@@ -19,6 +19,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Set up the database table — retries in the background until it succeeds
+// This function does NOT block the server startup
 async function initDB() {
   const MAX_RETRIES = 10;
   const RETRY_DELAY_MS = 3000;
@@ -175,10 +176,13 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running at http://localhost:${PORT}`);
-  // Initialise the DB in the background — server is already accepting requests.
-  // initDB() retries on its own; failures here never block the HTTP listener.
+});
+
+// Start DB init in background — does NOT block server startup
+// Use setImmediate to ensure it runs after the event loop is ready
+setImmediate(() => {
   initDB().catch(err => console.error('Unexpected initDB error:', err.message));
 });
 
