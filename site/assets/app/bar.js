@@ -1,4 +1,3 @@
-
 var params = new URLSearchParams(window.location.search);
 
 var bar = document.querySelectorAll(".bottom_element_grid");
@@ -124,6 +123,51 @@ function gotNewData(data){
     }
 }
 
+// ============================================================
+// Funkcje do zapisu/odczytu danych z serwera
+// ============================================================
+
+async function saveDataToServer(data, imageUrl) {
+    try {
+        await fetch('/api/userdata', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: data, image_url: imageUrl || null })
+        });
+    } catch(e) {
+        // Ignoruj błąd sieciowy - dane są też w IndexedDB
+    }
+}
+
+async function saveImageToServer(imageUrl) {
+    try {
+        await fetch('/api/userdata/image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_url: imageUrl })
+        });
+    } catch(e) {
+        // Ignoruj błąd sieciowy
+    }
+}
+
+async function loadDataFromServer() {
+    try {
+        const res = await fetch('/api/userdata');
+        if (res.ok) {
+            const result = await res.json();
+            return result;
+        }
+    } catch(e) {
+        // Ignoruj błąd sieciowy
+    }
+    return null;
+}
+
+// ============================================================
+// Ładowanie danych
+// ============================================================
+
 loadData();
 async function loadData() {
     var db = await getDb();
@@ -165,25 +209,19 @@ async function loadData() {
         urlData['data'] = 'data';
         gotNewData(urlData);
         saveData(db, urlData);
+        // Zapisz też na serwer
+        var imageUrl = params.get('image') || null;
+        saveDataToServer(urlData, imageUrl);
     } else if (data) {
         gotNewData(data);
     } else {
-        // Fallback - próba pobrania z serwera (może nie działać w local)
-        try {
-            fetch('/get/card?' + params)
-            .then(response => response.json())
-            .then(result => {
-                if (result && result.name) {
-                    result['data'] = 'data';
-                    gotNewData(result);
-                    saveData(db, result);
-                }
-            })
-            .catch(() => {
-                // Ignoruj błąd jeśli serwer nie odpowiada
-            });
-        } catch(e) {
-            // Ignoruj błąd
+        // Brak danych lokalnie - spróbuj pobrać z serwera
+        var serverData = await loadDataFromServer();
+        if (serverData && serverData.data) {
+            var d = serverData.data;
+            d['data'] = 'data';
+            gotNewData(d);
+            saveData(db, d);
         }
     }
 }
@@ -199,6 +237,7 @@ async function loadImage() {
     var imageUrl = params.get('image');
     
     if (imageUrl) {
+        // Nowy URL z kreatora - zapisz wszędzie
         localStorage.setItem('savedImageUrl', imageUrl);
         if (imageEvent) {
             imageEvent(imageUrl);
@@ -208,44 +247,30 @@ async function loadImage() {
             image: imageUrl
         };
         saveData(db, imageData);
+        saveImageToServer(imageUrl);
     } else if (image && imageEvent) {
+        // Jest w IndexedDB
         imageEvent(image.image);
     } else if (localStorage.getItem('savedImageUrl')) {
+        // Jest w localStorage
         var savedUrl = localStorage.getItem('savedImageUrl');
         if (imageEvent) imageEvent(savedUrl);
     } else {
-        // Fallback - próba pobrania z serwera
-        try {
-            fetch('/images?' + params)
-            .then(response => response.blob())
-            .then(result => {
-                var reader = new FileReader();
-                reader.readAsDataURL(result);
-                reader.onload = (event) => {
-                    var base = event.target.result;
-
-                    if (base !== image){
-                        if (imageEvent){
-                            imageEvent(base);
-                        }
-
-                        var data = {
-                            data: 'image',
-                            image: base
-                        }
-
-                        saveData(db, data)
-                    }
-                }
-            })
-            .catch(() => {
-                // Ignoruj błąd jeśli serwer nie odpowiada
-            });
-        } catch(e) {
-            // Ignoruj błąd
+        // Brak lokalnie - spróbuj pobrać z serwera
+        var serverData = await loadDataFromServer();
+        if (serverData && serverData.image_url) {
+            var url = serverData.image_url;
+            localStorage.setItem('savedImageUrl', url);
+            if (imageEvent) imageEvent(url);
+            var imageData2 = { data: 'image', image: url };
+            saveData(db, imageData2);
         }
     }
 }
+
+// ============================================================
+// IndexedDB helpers
+// ============================================================
 
 function getDb(){
     return new Promise((resolve, reject) => {

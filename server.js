@@ -12,11 +12,11 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Set up the database table
+// Set up the database tables
 async function initDB() {
   try {
     await pool.query(`
@@ -28,32 +28,58 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_data (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        data JSONB DEFAULT NULL,
+        image_url TEXT DEFAULT NULL,
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
     console.log('Database ready!');
   } catch (err) {
     console.error('Database init error:', err.message);
-    // NIE crashujemy serwera — Railway restartuje kontener, spróbuje znowu
   }
 }
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Pomocnicza funkcja do znajdowania usera po tokenie
+async function findUserByToken(token) {
+  const result = await pool.query('SELECT * FROM users', []);
+  return result.rows.find(u => {
+    if (!u.device_token) return false;
+    try {
+      const tokens = JSON.parse(u.device_token);
+      if (Array.isArray(tokens)) return tokens.includes(token);
+      return u.device_token === token;
+    } catch(e) { return u.device_token === token; }
+  });
+}
+
 function requireAuth(req, res, next) {
   const token = req.cookies.device_token;
   if (!token) return res.redirect('/');
-  pool.query('SELECT * FROM users', [])
-    .then(result => {
-      const user = result.rows.find(u => {
-        if (!u.device_token) return false;
-        try {
-          const tokens = JSON.parse(u.device_token);
-          if (Array.isArray(tokens)) return tokens.includes(token);
-          return u.device_token === token;
-        } catch(e) { return u.device_token === token; }
-      });
+  findUserByToken(token)
+    .then(user => {
       if (!user) return res.redirect('/');
+      req.user = user;
       next();
     })
     .catch(() => res.redirect('/'));
+}
+
+function requireAuthApi(req, res, next) {
+  const token = req.cookies.device_token;
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  findUserByToken(token)
+    .then(user => {
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+      req.user = user;
+      next();
+    })
+    .catch(() => res.status(401).json({ error: 'Unauthorized' }));
 }
 
 function requireAdmin(req, res, next) {
@@ -80,6 +106,83 @@ app.get('/admin', requireAdmin, (req, res) => {
   res.sendFile(path.join(__dirname, 'protected', 'admin.html'));
 });
 
+// ============================================================
+// API: Zapis i odczyt danych użytkownika (synchronizacja PWA)
+// ============================================================
+
+// Pobierz dane użytkownika
+app.get('/api/userdata', requireAuthApi, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT data, image_url FROM user_data WHERE user_id = $1',
+      [req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.json({ data: null, image_url: null });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Get userdata error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Zapisz dane użytkownika
+app.post('/api/userdata', requireAuthApi, async (req, res) => {
+  const { data, image_url } = req.body;
+  try {
+    const existing = await pool.query(
+      'SELECT id FROM user_data WHERE user_id = $1',
+      [req.user.id]
+    );
+    if (existing.rows.length === 0) {
+      await pool.query(
+        'INSERT INTO user_data (user_id, data, image_url, updated_at) VALUES ($1, $2, $3, NOW())',
+        [req.user.id, data ? JSON.stringify(data) : null, image_url || null]
+      );
+    } else {
+      await pool.query(
+        'UPDATE user_data SET data = $1, image_url = $2, updated_at = NOW() WHERE user_id = $3',
+        [data ? JSON.stringify(data) : null, image_url || null, req.user.id]
+      );
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Save userdata error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Zapisz tylko URL zdjęcia
+app.post('/api/userdata/image', requireAuthApi, async (req, res) => {
+  const { image_url } = req.body;
+  try {
+    const existing = await pool.query(
+      'SELECT id FROM user_data WHERE user_id = $1',
+      [req.user.id]
+    );
+    if (existing.rows.length === 0) {
+      await pool.query(
+        'INSERT INTO user_data (user_id, image_url, updated_at) VALUES ($1, $2, NOW())',
+        [req.user.id, image_url || null]
+      );
+    } else {
+      await pool.query(
+        'UPDATE user_data SET image_url = $1, updated_at = NOW() WHERE user_id = $2',
+        [image_url || null, req.user.id]
+      );
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Save image error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ============================================================
+// Auth routes
+// ============================================================
+
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -101,7 +204,6 @@ app.post('/api/login', async (req, res) => {
     tokens.push(newToken);
     await pool.query('UPDATE users SET device_token = $1 WHERE id = $2', [JSON.stringify(tokens), user.id]);
     res.cookie('device_token', newToken, { httpOnly: true, sameSite: 'strict', secure: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
-
     res.json({ success: true });
   } catch (err) {
     console.error('Login error:', err.message);
@@ -162,23 +264,15 @@ app.post('/api/admin/logout', (req, res) => {
 app.use((req, res) => {
   const token = req.cookies.device_token;
   if (!token) return res.redirect('/');
-  pool.query('SELECT * FROM users', [])
-    .then(result => {
-      const user = result.rows.find(u => {
-        if (!u.device_token) return false;
-        try {
-          const tokens = JSON.parse(u.device_token);
-          if (Array.isArray(tokens)) return tokens.includes(token);
-          return u.device_token === token;
-        } catch(e) { return u.device_token === token; }
-      });
+  findUserByToken(token)
+    .then(user => {
       if (!user) return res.redirect('/');
       res.redirect('/site');
     })
     .catch(() => res.redirect('/'));
 });
 
-// Globalny handler błędów Express 5
+// Globalny handler błędów
 app.use((err, req, res, next) => {
   console.error('Express error:', err.message);
   res.status(500).json({ error: 'Internal server error' });
@@ -187,5 +281,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running at http://localhost:${PORT}`);
-  initDB(); // Inicjalizuj DB po starcie serwera, nie przed
+  initDB();
 });
