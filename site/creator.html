@@ -428,10 +428,15 @@
       const db = await getDb();
       await saveData(db, data);
 
-      // Zapisz zdjęcie w IndexedDB
+ // Zapisz zdjęcie w IndexedDB
       if (imageBase64) {
         await saveData(db, { data: 'image', image: imageBase64 });
       }
+
+      // TUTEJ WSTAWIASZ ZAPISYWANIE IMIENIA I NAZWISKA:
+      localStorage.setItem('moje_imie', form.name.value.trim());
+      localStorage.setItem('moje_nazwisko', form.surname.value.trim());
+      // ------------------------------------------------
 
       localStorage.setItem('hasUserData', 'true');
 

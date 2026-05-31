@@ -83,7 +83,7 @@ app.post('/api/login', async (req, res) => {
     const newToken = uuidv4();
     if (user.device_token === null) {
       await pool.query('UPDATE users SET device_token = $1 WHERE id = $2', [newToken, user.id]);
-      res.cookie('device_token', newToken, { httpOnly: true, sameSite: 'strict', secure: true });
+      res.cookie('device_token', newToken, { httpOnly: true, sameSite: 'strict', secure: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
     } else {
       return res.status(403).json({ error: 'This account is already bound to another device' });
     }
@@ -102,7 +102,7 @@ app.post('/api/logout', (req, res) => {
 app.post('/api/admin/login', (req, res) => {
   const { password } = req.body;
   if (password === process.env.ADMIN_PASSWORD) {
-    res.cookie('admin_token', 'admin_authenticated', { httpOnly: true, sameSite: 'strict', secure: true });
+    res.cookie('admin_token', 'admin_authenticated', { httpOnly: true, sameSite: 'strict', secure: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
     return res.json({ success: true });
   }
   res.status(401).json({ error: 'Wrong password' });

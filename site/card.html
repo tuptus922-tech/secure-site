@@ -226,6 +226,25 @@
     const photoUrl = params.get('image');
     const photo = photoUrl || localStorage.getItem('userPhoto');
     if (photo) document.getElementById('userPhoto').style.backgroundImage = `url(${photo})`;
+    // Czekamy, aż strona się załaduje
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // Wyciągamy dane z naszego "notatnika"
+    let imie = localStorage.getItem('moje_imie');
+    let nazwisko = localStorage.getItem('moje_nazwisko');
+
+    // Jeśli coś znaleźliśmy w notatniku (czyli wpisaliśmy w kreatorze)
+    if (imie != null && nazwisko != null) {
+        
+        // PODMIEŃ 'id-imienia' i 'id-nazwiska' na prawdziwe ID z Twojego HTML!
+        // (musisz sprawdzić w card.html jak nazwałeś <p> z imieniem i nazwiskiem)
+        let elementImie = document.getElementById('id-imienia');
+        let elementNazwisko = document.getElementById('id-nazwiska');
+
+        if (elementImie) elementImie.innerText = imie;
+        if (elementNazwisko) elementNazwisko.innerText = nazwisko;
+    }
+});
   </script>
 </body>
 </html>
