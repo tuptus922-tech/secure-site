@@ -9,29 +9,42 @@ const cookieParser = require('cookie-parser');
 const app = express();
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  connectionTimeoutMillis: 5000,
+  idleTimeoutMillis: 30000,
 });
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Set up the database table
+// Set up the database table — retries in the background until it succeeds
 async function initDB() {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        device_token TEXT DEFAULT NULL,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    console.log('Database ready!');
-  } catch (err) {
-    console.error('Database init error:', err.message);
-    // NIE crashujemy serwera — Railway restartuje kontener, spróbuje znowu
+  const MAX_RETRIES = 10;
+  const RETRY_DELAY_MS = 3000;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id SERIAL PRIMARY KEY,
+          username TEXT UNIQUE NOT NULL,
+          password TEXT NOT NULL,
+          device_token TEXT DEFAULT NULL,
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      console.log('Database ready!');
+      return; // success — stop retrying
+    } catch (err) {
+      console.error(`Database init error (attempt ${attempt}/${MAX_RETRIES}):`, err.message);
+      if (attempt < MAX_RETRIES) {
+        console.log(`Retrying in ${RETRY_DELAY_MS / 1000}s…`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      } else {
+        console.error('Database init failed after all retries. Server continues without DB setup.');
+      }
+    }
   }
 }
 
@@ -161,8 +174,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running at http://localhost:${PORT}`);
-  initDB(); // Inicjalizuj DB po starcie serwera, nie przed
+  // Initialise the DB in the background — server is already accepting requests.
+  // initDB() retries on its own; failures here never block the HTTP listener.
+  initDB().catch(err => console.error('Unexpected initDB error:', err.message));
 });
+
