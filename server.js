@@ -18,18 +18,22 @@ app.use(cookieParser());
 
 // Set up the database table
 async function initDB() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      device_token TEXT DEFAULT NULL,
-      created_at TIMESTAMP DEFAULT NOW()
-    )
-  `);
-  console.log('Database ready!');
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        device_token TEXT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    console.log('Database ready!');
+  } catch (err) {
+    console.error('Database init error:', err.message);
+    // NIE crashujemy serwera — Railway restartuje kontener, spróbuje znowu
+  }
 }
-initDB();
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -85,6 +89,7 @@ app.post('/api/login', async (req, res) => {
     }
     res.json({ success: true });
   } catch (err) {
+    console.error('Login error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -104,8 +109,12 @@ app.post('/api/admin/login', (req, res) => {
 });
 
 app.get('/api/admin/users', requireAdmin, async (req, res) => {
-  const result = await pool.query('SELECT id, username, device_token, created_at FROM users');
-  res.json(result.rows);
+  try {
+    const result = await pool.query('SELECT id, username, device_token, created_at FROM users');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 app.post('/api/admin/users', requireAdmin, async (req, res) => {
@@ -121,8 +130,12 @@ app.post('/api/admin/users', requireAdmin, async (req, res) => {
 });
 
 app.post('/api/admin/users/:id/reset', requireAdmin, async (req, res) => {
-  await pool.query('UPDATE users SET device_token = NULL WHERE id = $1', [req.params.id]);
-  res.json({ success: true });
+  try {
+    await pool.query('UPDATE users SET device_token = NULL WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 app.post('/api/admin/logout', (req, res) => {
@@ -130,6 +143,7 @@ app.post('/api/admin/logout', (req, res) => {
   res.json({ success: true });
 });
 
+// Catch-all
 app.use((req, res) => {
   const token = req.cookies.device_token;
   if (!token) return res.redirect('/');
@@ -141,7 +155,14 @@ app.use((req, res) => {
     .catch(() => res.redirect('/'));
 });
 
+// Globalny handler błędów Express 5
+app.use((err, req, res, next) => {
+  console.error('Express error:', err.message);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running at http://localhost:${PORT}`);
+  initDB(); // Inicjalizuj DB po starcie serwera, nie przed
 });
