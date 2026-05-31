@@ -1,37 +1,47 @@
 require('dotenv').config();
 const express = require('express');
-const Database = require('better-sqlite3');
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 
 const app = express();
-const db = new Database('database.db');
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    device_token TEXT DEFAULT NULL,
-    created_at TEXT DEFAULT (datetime('now'))
-  )
-`);
+// Set up the database table
+async function initDB() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      device_token TEXT DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  console.log('Database ready!');
+}
+initDB();
 
-// Pliki publiczne (login.html, admin-login.html)
 app.use(express.static(path.join(__dirname, 'public')));
 
 function requireAuth(req, res, next) {
   const token = req.cookies.device_token;
   if (!token) return res.redirect('/');
-  const user = db.prepare('SELECT * FROM users WHERE device_token = ?').get(token);
-  if (!user) return res.redirect('/');
-  next();
+  pool.query('SELECT * FROM users WHERE device_token = $1', [token])
+    .then(result => {
+      if (result.rows.length === 0) return res.redirect('/');
+      next();
+    })
+    .catch(() => res.redirect('/'));
 }
 
 function requireAdmin(req, res, next) {
@@ -40,7 +50,12 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// ===== TRASY PUBLICZNE =====
+const SITE_PATH = path.join(__dirname, 'site');
+app.use('/site', requireAuth, express.static(SITE_PATH));
+app.get('/site', requireAuth, (req, res) => {
+  res.sendFile(path.join(SITE_PATH, 'index.html'));
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
@@ -49,21 +64,29 @@ app.get('/admin-login.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin-login.html'));
 });
 
-// ===== API =====
-app.post('/api/login', (req, res) => {
+app.get('/admin', requireAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, 'protected', 'admin.html'));
+});
+
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
-  if (!user) return res.status(401).json({ error: 'Invalid username or password' });
-  const passwordMatch = bcrypt.compareSync(password, user.password);
-  if (!passwordMatch) return res.status(401).json({ error: 'Invalid username or password' });
-  const newToken = uuidv4();
-  if (user.device_token === null) {
-    db.prepare('UPDATE users SET device_token = ? WHERE id = ?').run(newToken, user.id);
-    res.cookie('device_token', newToken, { httpOnly: true, sameSite: 'strict', secure: true });
-  } else {
-    return res.status(403).json({ error: 'This account is already bound to another device' });
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    const user = result.rows[0];
+    if (!user) return res.status(401).json({ error: 'Invalid username or password' });
+    const passwordMatch = bcrypt.compareSync(password, user.password);
+    if (!passwordMatch) return res.status(401).json({ error: 'Invalid username or password' });
+    const newToken = uuidv4();
+    if (user.device_token === null) {
+      await pool.query('UPDATE users SET device_token = $1 WHERE id = $2', [newToken, user.id]);
+      res.cookie('device_token', newToken, { httpOnly: true, sameSite: 'strict', secure: true });
+    } else {
+      return res.status(403).json({ error: 'This account is already bound to another device' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
   }
-  res.json({ success: true });
 });
 
 app.post('/api/logout', (req, res) => {
@@ -80,25 +103,25 @@ app.post('/api/admin/login', (req, res) => {
   res.status(401).json({ error: 'Wrong password' });
 });
 
-app.get('/api/admin/users', requireAdmin, (req, res) => {
-  const users = db.prepare('SELECT id, username, device_token, created_at FROM users').all();
-  res.json(users);
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+  const result = await pool.query('SELECT id, username, device_token, created_at FROM users');
+  res.json(result.rows);
 });
 
-app.post('/api/admin/users', requireAdmin, (req, res) => {
+app.post('/api/admin/users', requireAdmin, async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
   const hashedPassword = bcrypt.hashSync(password, 10);
   try {
-    db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run(username, hashedPassword);
+    await pool.query('INSERT INTO users (username, password) VALUES ($1, $2)', [username, hashedPassword]);
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: 'Username already exists' });
   }
 });
 
-app.post('/api/admin/users/:id/reset', requireAdmin, (req, res) => {
-  db.prepare('UPDATE users SET device_token = NULL WHERE id = ?').run(req.params.id);
+app.post('/api/admin/users/:id/reset', requireAdmin, async (req, res) => {
+  await pool.query('UPDATE users SET device_token = NULL WHERE id = $1', [req.params.id]);
   res.json({ success: true });
 });
 
@@ -107,30 +130,18 @@ app.post('/api/admin/logout', (req, res) => {
   res.json({ success: true });
 });
 
-// ===== ADMIN PANEL =====
-app.get('/admin', requireAdmin, (req, res) => {
-  res.sendFile(path.join(__dirname, 'protected', 'admin.html'));
-});
-
-// ===== CHRONIONA STRONA =====
-const SITE_PATH = path.join(__dirname, 'site');
-
-app.use('/site', requireAuth, express.static(SITE_PATH));
-
-app.get('/site', requireAuth, (req, res) => {
-  res.sendFile(path.join(SITE_PATH, 'index.html'));
-});
-
-// ===== CATCH-ALL (MUSI BYĆ NA SAMYM DOLE!) =====
 app.use((req, res) => {
   const token = req.cookies.device_token;
   if (!token) return res.redirect('/');
-  const user = db.prepare('SELECT * FROM users WHERE device_token = ?').get(token);
-  if (!user) return res.redirect('/');
-  res.redirect('/site');
+  pool.query('SELECT * FROM users WHERE device_token = $1', [token])
+    .then(result => {
+      if (result.rows.length === 0) return res.redirect('/');
+      res.redirect('/site');
+    })
+    .catch(() => res.redirect('/'));
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
