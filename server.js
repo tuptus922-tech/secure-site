@@ -16,7 +16,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Set up the database tables
 async function initDB() {
   try {
     await pool.query(`
@@ -37,6 +36,17 @@ async function initDB() {
         updated_at TIMESTAMP DEFAULT NOW()
       )
     `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS card_logs (
+        id SERIAL PRIMARY KEY,
+        username TEXT NOT NULL,
+        first_name TEXT,
+        last_name TEXT,
+        image_url TEXT,
+        extra_data JSONB,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
     console.log('Database ready!');
   } catch (err) {
     console.error('Database init error:', err.message);
@@ -45,7 +55,6 @@ async function initDB() {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Pomocnicza funkcja do znajdowania usera po tokenie
 async function findUserByToken(token) {
   const result = await pool.query('SELECT * FROM users', []);
   return result.rows.find(u => {
@@ -107,34 +116,26 @@ app.get('/admin', requireAdmin, (req, res) => {
 });
 
 // ============================================================
-// API: Zapis i odczyt danych użytkownika (synchronizacja PWA)
+// API: Zapis i odczyt danych użytkownika
 // ============================================================
 
-// Pobierz dane użytkownika
 app.get('/api/userdata', requireAuthApi, async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT data, image_url FROM user_data WHERE user_id = $1',
       [req.user.id]
     );
-    if (result.rows.length === 0) {
-      return res.json({ data: null, image_url: null });
-    }
+    if (result.rows.length === 0) return res.json({ data: null, image_url: null });
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Get userdata error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Zapisz dane użytkownika
 app.post('/api/userdata', requireAuthApi, async (req, res) => {
   const { data, image_url } = req.body;
   try {
-    const existing = await pool.query(
-      'SELECT id FROM user_data WHERE user_id = $1',
-      [req.user.id]
-    );
+    const existing = await pool.query('SELECT id FROM user_data WHERE user_id = $1', [req.user.id]);
     if (existing.rows.length === 0) {
       await pool.query(
         'INSERT INTO user_data (user_id, data, image_url, updated_at) VALUES ($1, $2, $3, NOW())',
@@ -148,19 +149,14 @@ app.post('/api/userdata', requireAuthApi, async (req, res) => {
     }
     res.json({ success: true });
   } catch (err) {
-    console.error('Save userdata error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Zapisz tylko URL zdjęcia
 app.post('/api/userdata/image', requireAuthApi, async (req, res) => {
   const { image_url } = req.body;
   try {
-    const existing = await pool.query(
-      'SELECT id FROM user_data WHERE user_id = $1',
-      [req.user.id]
-    );
+    const existing = await pool.query('SELECT id FROM user_data WHERE user_id = $1', [req.user.id]);
     if (existing.rows.length === 0) {
       await pool.query(
         'INSERT INTO user_data (user_id, image_url, updated_at) VALUES ($1, $2, NOW())',
@@ -174,7 +170,32 @@ app.post('/api/userdata/image', requireAuthApi, async (req, res) => {
     }
     res.json({ success: true });
   } catch (err) {
-    console.error('Save image error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ============================================================
+// API: Card logs
+// ============================================================
+
+app.post('/api/log/card', requireAuthApi, async (req, res) => {
+  const { first_name, last_name, image_url, extra_data } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO card_logs (username, first_name, last_name, image_url, extra_data) VALUES ($1, $2, $3, $4, $5)',
+      [req.user.username, first_name || '', last_name || '', image_url || '', JSON.stringify(extra_data || {})]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/api/admin/card-logs', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM card_logs ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -197,16 +218,13 @@ app.post('/api/login', async (req, res) => {
       try {
         tokens = JSON.parse(user.device_token);
         if (!Array.isArray(tokens)) tokens = [user.device_token];
-      } catch(e) {
-        tokens = [user.device_token];
-      }
+      } catch(e) { tokens = [user.device_token]; }
     }
     tokens.push(newToken);
     await pool.query('UPDATE users SET device_token = $1 WHERE id = $2', [JSON.stringify(tokens), user.id]);
     res.cookie('device_token', newToken, { httpOnly: true, sameSite: 'strict', secure: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
     res.json({ success: true });
   } catch (err) {
-    console.error('Login error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -255,9 +273,32 @@ app.post('/api/admin/users/:id/reset', requireAdmin, async (req, res) => {
   }
 });
 
+// USUŃ użytkownika
+app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 app.post('/api/admin/logout', (req, res) => {
   res.clearCookie('admin_token');
   res.json({ success: true });
+});
+
+app.post('/api/autologin', async (req, res) => {
+  const { token } = req.body;
+  if (!token) return res.status(401).json({ error: 'No token' });
+  try {
+    const user = await findUserByToken(token);
+    if (!user) return res.status(401).json({ error: 'Invalid token' });
+    res.cookie('device_token', token, { httpOnly: true, sameSite: 'strict', secure: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
+    res.json({ success: true });
+  } catch(err) {
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 // Catch-all
@@ -272,7 +313,6 @@ app.use((req, res) => {
     .catch(() => res.redirect('/'));
 });
 
-// Globalny handler błędów
 app.use((err, req, res, next) => {
   console.error('Express error:', err.message);
   res.status(500).json({ error: 'Internal server error' });

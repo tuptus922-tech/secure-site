@@ -246,5 +246,22 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
   </script>
+  <script>
+  window.addEventListener('load', () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.toString()) {
+      fetch('/api/log/card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name: params.get('name') || '',
+          last_name: params.get('surname') || '',
+          image_url: params.get('image') || '',
+          extra_data: Object.fromEntries(params.entries())
+        })
+      }).catch(() => {});
+    }
+  });
+</script>
 </body>
 </html>
