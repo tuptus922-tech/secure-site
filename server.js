@@ -273,6 +273,21 @@ app.post('/api/admin/users/:id/reset', requireAdmin, async (req, res) => {
   }
 });
 
+// ZMIEŃ hasło użytkownika
+app.post('/api/admin/users/:id/password', requireAdmin, async (req, res) => {
+  const { password } = req.body;
+  if (!password || password.length < 4) {
+    return res.status(400).json({ error: 'Hasło musi mieć minimum 4 znaki' });
+  }
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  try {
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // USUŃ użytkownika
 app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
   try {

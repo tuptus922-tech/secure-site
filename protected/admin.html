@@ -42,6 +42,8 @@
     .btn-orange:hover { background: rgba(200,100,20,0.45); }
     .btn-red-sm { color: rgba(255,160,160,0.95); background: rgba(200,40,40,0.25); box-shadow: 0 0 0 1px rgba(255,100,100,0.2) inset; font-size: 13px; padding: 8px 14px; }
     .btn-red-sm:hover { background: rgba(200,40,40,0.4); }
+    .btn-blue { color: rgba(160,200,255,0.95); background: rgba(20,80,200,0.3); box-shadow: 0 0 0 1px rgba(80,160,255,0.2) inset; font-size: 13px; padding: 8px 14px; }
+    .btn-blue:hover { background: rgba(20,80,200,0.45); }
     .msg { font-size: 13px; margin-top: 12px; min-height: 20px; }
     table { width: 100%; border-collapse: collapse; }
     thead tr { border-bottom: 1px solid rgba(255,255,255,0.08); }
@@ -57,6 +59,15 @@
     .refresh-btn:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); }
     .avatar { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; background: rgba(255,255,255,0.08); }
     .actions-cell { display: flex; gap: 6px; flex-wrap: wrap; }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center; }
+    .modal-box { position: relative; width: 100%; max-width: 360px; margin: 1rem; border-radius: 24px; padding: 2rem; background: rgba(255,255,255,0.08); backdrop-filter: blur(40px); box-shadow: 0 0 0 1px rgba(255,255,255,0.15) inset, 0 32px 80px rgba(0,0,0,0.5); }
+    .modal-box::before { content: ''; position: absolute; top: 0; left: 5%; right: 5%; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); }
+    .modal-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; }
+    .modal-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(200,100,20,0.25); box-shadow: 0 0 0 1px rgba(255,180,80,0.2) inset; display: flex; align-items: center; justify-content: center; color: rgba(255,200,120,0.9); font-size: 18px; }
+    .modal-title { font-size: 15px; font-weight: 500; color: rgba(255,255,255,0.95); }
+    .modal-sub { font-size: 12px; color: rgba(255,255,255,0.3); }
+    .modal-msg { font-size: 13px; margin-bottom: 12px; min-height: 18px; }
+    .modal-actions { display: flex; gap: 8px; }
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   </style>
 </head>
@@ -64,6 +75,26 @@
   <div class="blob b1"></div>
   <div class="blob b2"></div>
   <div class="blob b3"></div>
+
+  <!-- MODAL: Zmiana hasła -->
+  <div class="modal-overlay" id="passwordModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-icon"><i class="ti ti-key"></i></div>
+        <div>
+          <div class="modal-title">Zmień hasło</div>
+          <div class="modal-sub" id="modalUsername"></div>
+        </div>
+      </div>
+      <input class="glass-input" type="password" id="newPasswordInput" placeholder="Nowe hasło" style="width:100%; margin-bottom:10px;" />
+      <input class="glass-input" type="password" id="confirmPasswordInput" placeholder="Powtórz hasło" style="width:100%; margin-bottom:14px;" />
+      <p class="modal-msg" id="modalMsg"></p>
+      <div class="modal-actions">
+        <button class="btn btn-orange" style="flex:1;" onclick="confirmChangePassword()"><i class="ti ti-check"></i> Zapisz</button>
+        <button class="btn btn-red-sm" style="flex:1;" onclick="closeModal()"><i class="ti ti-x"></i> Anuluj</button>
+      </div>
+    </div>
+  </div>
 
   <div class="container">
     <div class="topbar">
@@ -74,18 +105,12 @@
           <div class="topbar-sub">Zarządzanie użytkownikami</div>
         </div>
       </div>
-      <button class="btn-logout" onclick="logout()">
-        <i class="ti ti-logout"></i> Wyloguj
-      </button>
+      <button class="btn-logout" onclick="logout()"><i class="ti ti-logout"></i> Wyloguj</button>
     </div>
 
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('users', this)">
-        <i class="ti ti-users"></i> Użytkownicy
-      </button>
-      <button class="tab-btn" onclick="switchTab('logs', this)">
-        <i class="ti ti-history"></i> Historia kart
-      </button>
+      <button class="tab-btn active" onclick="switchTab('users', this)"><i class="ti ti-users"></i> Użytkownicy</button>
+      <button class="tab-btn" onclick="switchTab('logs', this)"><i class="ti ti-history"></i> Historia kart</button>
     </div>
 
     <!-- TAB: USERS -->
@@ -107,9 +132,7 @@
         </button>
         <table>
           <thead>
-            <tr>
-              <th>ID</th><th>Login</th><th>Status</th><th>Data dodania</th><th>Akcje</th>
-            </tr>
+            <tr><th>ID</th><th>Login</th><th>Urządzenia</th><th>Data dodania</th><th>Akcje</th></tr>
           </thead>
           <tbody id="usersTable">
             <tr class="empty-row"><td colspan="5">Ładowanie...</td></tr>
@@ -127,9 +150,7 @@
         </button>
         <table>
           <thead>
-            <tr>
-              <th>Zdjęcie</th><th>Użytkownik</th><th>Imię</th><th>Nazwisko</th><th>Dodatkowe dane</th><th>Data</th>
-            </tr>
+            <tr><th>Zdjęcie</th><th>Użytkownik</th><th>Imię</th><th>Nazwisko</th><th>Dodatkowe dane</th><th>Data</th></tr>
           </thead>
           <tbody id="logsTable">
             <tr class="empty-row"><td colspan="6">Kliknij Odśwież aby załadować...</td></tr>
@@ -163,24 +184,27 @@
       }
       users.forEach(user => {
         let deviceCount = 0;
-if (user.device_token) {
-  try {
-    const tokens = JSON.parse(user.device_token);
-    deviceCount = Array.isArray(tokens) ? tokens.length : 1;
-  } catch(e) { deviceCount = 1; }
-}
-const bound = deviceCount > 0;
+        if (user.device_token) {
+          try {
+            const tokens = JSON.parse(user.device_token);
+            deviceCount = Array.isArray(tokens) ? tokens.length : 1;
+          } catch(e) { deviceCount = 1; }
+        }
+        const bound = deviceCount > 0;
         const date = new Date(user.created_at).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const deviceLabel = deviceCount === 1 ? 'urządzenie' : deviceCount < 5 ? 'urządzenia' : 'urządzeń';
         tbody.innerHTML += `
           <tr>
             <td style="color:rgba(255,255,255,0.3)">${user.id}</td>
             <td class="username">${user.username}</td>
             <td>${bound
-            ? `<span class="badge-bound"><i class="ti ti-device-mobile"></i> ${deviceCount} ${deviceCount === 1 ? 'urządzenie' : deviceCount < 5 ? 'urządzenia' : 'urządzeń'}</span>`              : '<span class="badge-free"><i class="ti ti-circle-dashed"></i> Wolne</span>'
+              ? `<span class="badge-bound"><i class="ti ti-device-mobile"></i> ${deviceCount} ${deviceLabel}</span>`
+              : '<span class="badge-free"><i class="ti ti-circle-dashed"></i> Wolne</span>'
             }</td>
             <td style="color:rgba(255,255,255,0.4)">${date}</td>
             <td class="actions-cell">
               ${bound ? `<button class="btn btn-orange" onclick="resetDevice(${user.id})"><i class="ti ti-refresh"></i> Reset</button>` : ''}
+              <button class="btn btn-blue" onclick="openPasswordModal(${user.id}, '${user.username}')"><i class="ti ti-key"></i> Hasło</button>
               <button class="btn btn-red-sm" onclick="deleteUser(${user.id}, '${user.username}')"><i class="ti ti-trash"></i> Usuń</button>
             </td>
           </tr>
@@ -263,6 +287,58 @@ const bound = deviceCount > 0;
         loadUsers();
       } else {
         alert('Błąd podczas usuwania!');
+      }
+    }
+
+    let currentUserId = null;
+
+    function openPasswordModal(id, username) {
+      currentUserId = id;
+      document.getElementById('modalUsername').textContent = '@' + username;
+      document.getElementById('newPasswordInput').value = '';
+      document.getElementById('confirmPasswordInput').value = '';
+      document.getElementById('modalMsg').textContent = '';
+      const modal = document.getElementById('passwordModal');
+      modal.style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('passwordModal').style.display = 'none';
+      currentUserId = null;
+    }
+
+    async function confirmChangePassword() {
+      const newPass = document.getElementById('newPasswordInput').value.trim();
+      const confirmPass = document.getElementById('confirmPasswordInput').value.trim();
+      const msg = document.getElementById('modalMsg');
+      if (!newPass || !confirmPass) {
+        msg.style.color = 'rgba(255,100,100,0.85)';
+        msg.textContent = 'Wypełnij oba pola.';
+        return;
+      }
+      if (newPass !== confirmPass) {
+        msg.style.color = 'rgba(255,100,100,0.85)';
+        msg.textContent = 'Hasła nie są identyczne!';
+        return;
+      }
+      if (newPass.length < 4) {
+        msg.style.color = 'rgba(255,100,100,0.85)';
+        msg.textContent = 'Hasło musi mieć minimum 4 znaki.';
+        return;
+      }
+      const res = await fetch('/api/admin/users/' + currentUserId + '/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPass })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        msg.style.color = 'rgba(100,255,160,0.85)';
+        msg.textContent = '✅ Hasło zmienione!';
+        setTimeout(() => closeModal(), 1000);
+      } else {
+        msg.style.color = 'rgba(255,100,100,0.85)';
+        msg.textContent = data.error || 'Błąd zmiany hasła.';
       }
     }
 
