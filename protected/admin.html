@@ -162,15 +162,21 @@
         return;
       }
       users.forEach(user => {
-        const bound = user.device_token !== null;
+        let deviceCount = 0;
+if (user.device_token) {
+  try {
+    const tokens = JSON.parse(user.device_token);
+    deviceCount = Array.isArray(tokens) ? tokens.length : 1;
+  } catch(e) { deviceCount = 1; }
+}
+const bound = deviceCount > 0;
         const date = new Date(user.created_at).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
         tbody.innerHTML += `
           <tr>
             <td style="color:rgba(255,255,255,0.3)">${user.id}</td>
             <td class="username">${user.username}</td>
             <td>${bound
-              ? '<span class="badge-bound"><i class="ti ti-device-mobile"></i> Zbindowane</span>'
-              : '<span class="badge-free"><i class="ti ti-circle-dashed"></i> Wolne</span>'
+            ? `<span class="badge-bound"><i class="ti ti-device-mobile"></i> ${deviceCount} ${deviceCount === 1 ? 'urządzenie' : deviceCount < 5 ? 'urządzenia' : 'urządzeń'}</span>`              : '<span class="badge-free"><i class="ti ti-circle-dashed"></i> Wolne</span>'
             }</td>
             <td style="color:rgba(255,255,255,0.4)">${date}</td>
             <td class="actions-cell">
