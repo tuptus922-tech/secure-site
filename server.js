@@ -147,8 +147,7 @@ app.post('/api/userdata', requireAuthApi, async (req, res) => {
         [data ? JSON.stringify(data) : null, image_url || null, req.user.id]
       );
     }
-    res.json({ success: true });
-  } catch (err) {
+res.json({ success: true, token: newToken });  } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 });
