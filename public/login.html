@@ -275,7 +275,15 @@
         if (res.ok) {
           btn.innerHTML = '<i class="ti ti-check"></i> Zalogowano!';
           btn.style.background = 'rgba(20,180,100,0.35)';
-          setTimeout(() => { window.location.href = '/site'; }, 600);
+// Zapisz token do localStorage dla autologinu
+try {
+  const cookies = document.cookie.split(';');
+  const tokenCookie = cookies.find(c => c.trim().startsWith('device_token='));
+  if (tokenCookie) {
+    localStorage.setItem('auth_token', tokenCookie.split('=')[1].trim());
+  }
+} catch(e) {}
+setTimeout(() => { window.location.href = '/site'; }, 600);
         } else {
           showMsg(data.error || 'Błąd logowania.', 'error');
           resetBtn();
